@@ -1,0 +1,132 @@
+//
+// Arrays
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  shared package TerminalIO is separate;
+
+  Print    : procedure renames TerminalIO.PrintString;
+  NewLine  : procedure renames TerminalIO.NewLine;
+  PrintNum : procedure renames TerminalIO.PrintNumber;
+
+  type Index1 is range 1..10;
+  type Elt1 is range 0..2;
+
+  // Declare an array type
+  type Arr1 is array [Index1] of Elt1;
+
+  type Index2 is (AA, BB, CC);
+
+  // An enumerated type can serve as an index
+  // Here we also declare the type of the array elements
+  type Arr2 is array [Index2] of range 1..3;
+
+  // Declare another array type, but in this case declare both the
+  // index and array types at the same time
+  type Arr3 is array [range -2..3] of range 4..6;
+
+  // Declare a constant array of type Arr2 to be included in the
+  // program image (e.g. for use as a lookup table)
+  Lookup2 : Arr2 := [ AA => 3, BB => 2, CC => 1 ] using (access_mode => image);
+
+  procedure PrintArray1(A1 : in Arr1) is
+  begin
+    for J : Index1 loop
+      PrintNum(A1[J]);
+      Print(" ");
+    end loop;
+    NewLine;
+  end PrintArray1;
+
+  procedure PrintArray3(A3 : in Arr3) is
+  begin
+    for J : A3'index_type loop
+      PrintNum(A3[J]);
+      Print(" ");
+    end loop;
+    NewLine;
+  end PrintArray3;
+
+  // Sum any array whose index is within Arr3's index type, and whose elements are
+  // the same as those of Arr3
+  // The notation <[ means not fixed at the left; ]> means not fixed at the right
+  procedure SumArray3(Arr : in array <[Arr3'index_type]> of Arr3'element_type) is
+    Total : range 0..Arr3'element_type'last * Arr3'length;
+  begin
+    Total := 0;
+    for P : Arr3'index_type in Arr'first..Arr'last loop
+      // Tell the compiler something that it couldn't work out for itself (otherwise
+      // it will assume the worst and generate a compile-time range error in this case)
+      advise Total <= Arr3'element_type'last * (Arr3'length - 1);
+      //
+      Total := Total + Arr[P];
+    end loop;
+    Print("Sum: "); PrintNum(Total); NewLine;
+  end SumArray3;
+
+  // Declare a type with the right index fixed at compile time
+  type Arr3Right is array <[Arr3'index_type] of Arr3'element_type;
+
+  procedure SumRight3(Arr : in Arr3Right) is
+  begin
+    SumArray3(Arr);
+  end SumRight3;
+
+  procedure FixedArrays is
+    // Create an array and initialise it with a range expression
+    C1 : Arr1 := [range X => X mod (Elt1'last + 1)];
+    // Create an array and initialise it with an element-by-element assignment
+    C3 : Arr3 := [-2 => 4, -1 => 5, 0 => 6, 1 => 4, 2 => 5, 3 => 6];
+    // C1 and C3 are constant for the duration of the procedure call; they cannot
+    // be modified within the procedure body
+    //
+    // Declare an uninitialised variable
+    V3 : Arr3;
+    // V3 can be modified within the procedure body
+  begin
+    Print("C1: ");
+    PrintArray1(C1);
+    Print("C3: ");
+    PrintArray3(C3);
+    // Initialise V3
+    V3 := [range J => V3'element_type'first];
+    // Now modify it
+    V3[V3'first] := V3'element_type'last;
+    Print("V3: ");
+    PrintArray3(V3);
+    // Copy C3 to V3
+    V3 := C3;
+    Print("V3: ");
+    PrintArray3(V3);
+    // Assign to a slice
+    V3[V3'first + 1..V3'first + 2] := [range X => 4];
+    Print("V3: ");
+    PrintArray3(V3);
+    // Copy a slice
+    V3[V3'first..V3'first + 2] := V3[V3'last - 2..V3'last];
+    Print("V3: ");
+    PrintArray3(V3);
+    // Assign to a tail slice
+    V3[V3'first + 2..] := [range X => 5];
+    Print("V3: ");
+    PrintArray3(V3);
+    // Sum an array
+    SumArray3(C3);
+    // Sum a slice
+    SumArray3(C3[-1..1]);
+    SumRight3(C3[0..]);
+    //
+    Print("Lookup2[CC]: ");
+    PrintNum(Lookup2[CC]);
+    NewLine;
+  end FixedArrays;
+
+  main procedure Arrays is
+  begin
+    FixedArrays;
+  end Arrays;
+
+end Hello;
+

@@ -1,0 +1,175 @@
+package Target is
+
+  pragma target_integer_type(
+           cname         => "unsigned char",
+           min_value     => 0,
+           max_value     => 255,
+           arithmetic    => true,
+           preferred     => false,
+           iname         => unsigned_8,
+           bits          => 8,
+           atomic        => true,
+           format_string => "%u");
+
+  pragma target_integer_type(
+           cname         => "unsigned short",
+           min_value     => 0,
+           max_value     => 0xffff,
+           arithmetic    => true,
+           preferred     => true,
+           iname         => unsigned_16,
+           bits          => 16,
+           atomic        => true,
+           format_string => "%u");
+
+  pragma target_integer_type(
+           cname         => "unsigned long",
+           min_value     => 0,
+           max_value     => 4294967295,
+           arithmetic    => true,
+           preferred     => false,
+           iname         => unsigned_32,
+           bits          => 32,
+           atomic        => false,
+           format_string => "%lu");
+
+  pragma target_integer_type(
+           cname         => "char",
+           min_value     => -128,
+           max_value     => 127,
+           arithmetic    => true,
+           preferred     => false,
+           iname         => signed_8,
+           bits          => 8,
+           atomic        => true,
+           format_string => "%d");
+
+  pragma target_integer_type(
+           cname         => "short",
+           min_value     => -32768,
+           max_value     => 32767,
+           arithmetic    => true,
+           preferred     => true,
+           iname         => signed_16,
+           bits          => 16,
+           atomic        => true,
+           format_string => "%d");
+
+  pragma target_integer_type(
+           cname         => "long",
+           min_value     => -2147483648,
+           max_value     => 2147483647,
+           arithmetic    => true,
+           preferred     => false,
+           iname         => signed_32,
+           bits          => 32,
+           atomic        => false,
+           format_string => "%ld");
+
+  pragma boolean_type(unsigned_8);
+  pragma character_type(signed_8);
+  pragma universal_index_type(word_type => signed_16, min_value => -30000, max_value => 30000);
+
+  pragma target_float_type(
+           cname           => "float",
+           float_digits    => 6,
+           float_magnitude => 37,
+           arithmetic      => true,
+           iname           => ieee_single,
+           bits            => 32,
+           format_string   => "%f");
+
+  pragma call_overhead(4);
+  pragma interrupt_overhead(8);
+
+  //pragma pre_dispatch("__disable_interrupt();");
+  //pragma post_dispatch("__enable_interrupt();");
+
+  pragma inline_prefix("static inline");
+
+  public closed function integer_to_address(Int : in unsigned_16) : address
+    using (usage => library, code => macro) is
+  begin
+  ! (`address`)(`Int`)
+  end integer_to_address;
+
+  public closed function address_to_integer(Addr : in address) : unsigned_16
+    using (usage => library, code => macro) is
+  begin
+  ! (`unsigned_16`)(`Addr`)
+  end address_to_integer;
+
+  public closed function to_non_const_address(Addr : in address) : address
+    using (usage => library, code => macro) is
+  begin
+  ! (void *)(Addr)
+  end to_non_const_address;
+
+  public shared procedure unsigned_8_modulo_add(
+      Var : in out unsigned_8 using (access_mode => volatile); Val : in unsigned_8)
+    using (usage => library, code => inline) is
+  begin
+  ! *`Var` += `Val`;
+    pragma unchecked_use(Val);
+  unit_test
+    declare
+      Tmp : unsigned_8;
+    begin
+      Tmp := 0;
+      unsigned_8_modulo_add(Var => Tmp, Val => 250);
+      if Tmp /= 250 then
+        pragma fail;
+      end if;
+      unsigned_8_modulo_add(Var => Tmp, Val => 7);
+      if Tmp /= 1 then
+        pragma fail;
+      end if;
+    end;
+  end unsigned_8_modulo_add;
+
+  public shared procedure unsigned_16_modulo_add(
+      Var : in out unsigned_16 using (access_mode => volatile); Val : in unsigned_16)
+    using (usage => library, code => inline) is
+  begin
+  ! *`Var` += `Val`;
+    pragma unchecked_use(Val);
+  unit_test
+    declare
+      Tmp : unsigned_16;
+    begin
+      Tmp := 0;
+      unsigned_16_modulo_add(Var => Tmp, Val => 0xfffc);
+      if Tmp /= 0xfffc then
+        pragma fail;
+      end if;
+      unsigned_16_modulo_add(Var => Tmp, Val => 5);
+      if Tmp /= 1 then
+        pragma fail;
+      end if;
+    end;
+  end unsigned_16_modulo_add;
+
+  public shared procedure unsigned_32_modulo_add(
+      Var : in out unsigned_32 using (access_mode => volatile); Val : in unsigned_32)
+    using (usage => library, code => inline) is
+  begin
+  ! *`Var` += `Val`;
+    pragma unchecked_use(Val);
+  unit_test
+    declare
+      Tmp : unsigned_32;
+    begin
+      Tmp := 0;
+      unsigned_32_modulo_add(Var => Tmp, Val => 0xfffffffc);
+      if Tmp /= 0xfffffffc then
+        pragma fail;
+      end if;
+      unsigned_32_modulo_add(Var => Tmp, Val => 5);
+      if Tmp /= 1 then
+        pragma fail;
+      end if;
+    end;
+  end unsigned_32_modulo_add;
+
+end Target;
+

@@ -1,0 +1,119 @@
+//
+// Abstract data type
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  // Changed TerminalIO
+  shared package TerminalIO is
+
+    pragma include("<stdio.h>");
+
+    // Print a string. Marking the procedure 'closed' applies some
+    // restrictions to it, in particular, it cannot assign to a global
+    // variable, directly or indirectly. This is helpful in this case
+    // because it allows local character array variables to be passed
+    // to it as strings (otherwise this would be forbidden because of
+    // the risk of leaving a dangling pointer, in the particular case
+    // of strings).
+    public closed procedure PrintString(Str : in string) is
+    begin
+    ! printf("%s", `Str`);
+      pragma unchecked_use(Str);
+    end PrintString;
+
+    public procedure NewLine is
+    begin
+    ! printf("\n");
+    end NewLine;    
+
+  end TerminalIO;
+
+  //
+  // Implement an ADT for message identifiers
+  //
+  shared package MessageIdentifiers is
+
+    pragma include("<string.h>");
+
+    // This type is public but its definition is not, so from outside this
+    // package it can be used to declare variables and parameters and in
+    // the definition of other types (e.g. as a fields of a record), but
+    // objects of this type cannot be manipulated except by calling routines
+    // in this package.
+    public type MessageID is range 1..5;
+
+    // In this case both the existence and the definition of the type are
+    // public, so variables of this type can be directly manipulated
+    // outside this package.
+    public type ImageString is public array [range 1..5] of character;
+
+    public procedure InitialiseID(ID : out MessageID) is
+    begin
+      ID := MessageID'first;
+    end InitialiseID;
+
+    public procedure NextID(ID : in out MessageID) is
+    begin
+      if ID < MessageID'last then
+        ID := ID + 1;
+      else
+        ID := MessageID'first;
+      end if;
+    end NextID;
+
+    public procedure IDToString(
+      ID  : in MessageID; Str : out ImageString) is
+    begin
+    ! sprintf(`Str`, "Msg%u", `ID`);
+      pragma unchecked_use(ID);
+      pragma unchecked_initialisation(Str);
+    end IDToString;
+      
+  end MessageIdentifiers;
+
+  subsystem Hello1 is
+
+    main procedure SayHello is
+      MsgID : MessageIdentifiers.MessageID;
+      IDStr : MessageIdentifiers.ImageString;
+    begin
+      MessageIdentifiers.InitialiseID(MsgID);
+      loop
+        MessageIdentifiers.IDToString(MsgID, IDStr);
+        TerminalIO.PrintString("Subsystem 1: ");
+        TerminalIO.PrintString(IDStr);
+        TerminalIO.NewLine;
+        pragma dispatch;
+        MessageIdentifiers.NextID(MsgID);
+      end loop;
+    end SayHello;
+
+  end Hello1;
+
+  subsystem Hello2 is
+
+    MsgID : MessageIdentifiers.MessageID;
+
+    main procedure SayHello is
+      IDStr : MessageIdentifiers.ImageString;
+    begin
+      loop
+        pragma dispatch;
+        MessageIdentifiers.IDToString(MsgID, IDStr);
+        TerminalIO.PrintString("Subsystem 2: ");
+        TerminalIO.PrintString(IDStr);
+        TerminalIO.NewLine;
+        MessageIdentifiers.NextID(MsgID);
+      end loop;
+    end SayHello;
+
+  begin
+    MessageIdentifiers.InitialiseID(MsgID);
+  end Hello2;
+
+  pragma no_main;
+
+end Hello;
+

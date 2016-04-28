@@ -1,0 +1,89 @@
+//
+// Restarting, enumerated type
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  shared package TerminalIO is separate;
+
+  shared generic package IntegerOps is separate;
+
+  type Counter is range 1..10;
+
+  shared package CounterOps is new IntegerOps(IntType => Counter);
+
+  subsystem Hello1 is
+
+    // A variable of an enumerated type
+    // Because there is only one of these (in this case), we conveniently
+    // declare the type as part of the variable declaration.
+    // Alternatively we could have said
+    //   type RunState is (Starting, Running, Error);
+    //   SubsystemState : RunState;
+    
+    SubsystemState : (Starting, Running, Error);
+
+    // The type of SubsystemState is anonymous, but can be
+    // obtained with SubsystemState'type
+
+    procedure CheckSomething(Num : in Counter) is
+    begin
+      // Suppose that we get into a state that is erroneous. We
+      // can restart the subsystem.
+      if Num = Counter'last - 3 then
+        SubsystemState := Error;
+        restart subsystem;
+      end if;
+    end CheckSomething;
+
+    main procedure SayHello is
+      Count : Counter;
+    begin
+      if SubsystemState = Error then
+        TerminalIO.PrintLine("Restarted 1");
+        SubsystemState := Starting;
+      else
+        TerminalIO.PrintLine("Start 1");
+      end if;
+      Count := Counter'first;
+      SubsystemState := Running;
+      loop
+        CheckSomething(Count);
+        TerminalIO.PrintHello("subsystem 1", Count);
+        CounterOps.WrapUp(Count);
+        pragma dispatch;
+      end loop;
+    end SayHello;
+
+  begin
+    SubsystemState := Starting;
+  end Hello1;
+
+  subsystem Hello2 is
+
+    Count : Counter;
+
+    main procedure SayHello is
+    begin
+      loop
+        pragma dispatch;
+        TerminalIO.PrintHello("subsystem 2", Count);
+        CounterOps.WrapUp(Num => in out Count);
+      end loop;
+    end SayHello;
+
+  begin
+    Count := Count'first;
+  end Hello2;
+
+  main procedure SayHello is
+  begin
+    for J : range 1..5 loop
+      TerminalIO.PrintHello("main", J);
+      pragma dispatch;
+    end loop;
+  end SayHello;
+
+end Hello;
+

@@ -1,0 +1,24 @@
+// Changed TerminalIO
+shared package TerminalIO using (usage => library) is
+
+  pragma include("<stdio.h>");
+
+  public closed procedure PrintString(Str : in string) is
+  begin
+  ! printf("%s", `Str`);
+    pragma unchecked_use(Str);
+  end PrintString;
+
+  public procedure NewLine is
+  begin
+  ! printf("\n");
+  end NewLine;
+
+  public closed procedure PrintNumber(Num : in Target.unsigned_16) is
+  begin
+  ! printf("%u", `Num`);
+    pragma unchecked_use(Num);
+  end PrintNumber;    
+
+end TerminalIO;
+

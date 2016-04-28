@@ -1,0 +1,74 @@
+//
+// Shared procedures
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  type Counter is range 1..10;
+
+  // The package is in a separate file, but logically here
+  shared package TerminalIO is separate;
+
+  // A shared procedure to increment counters. It must be 'shared' because
+  // it is called from different (sub)systems from the one in which
+  // it is defined. Some restrictions apply to shared procedures, in
+  // particular with respect to direct access to global variables.
+  // 'in out' means that the parameter must have a value when the
+  // procedure is called, and the procedure can update that value
+  shared procedure IncCounter(CountVar : in out Counter) is
+  begin
+    if CountVar < Counter'last then
+      CountVar := CountVar + 1;
+    else
+      CountVar := Counter'first;
+    end if;
+  end IncCounter;
+
+  subsystem Hello1 is
+
+    main procedure SayHello is
+      Count : Counter;
+    begin
+      Count := Counter'first;
+      loop
+        TerminalIO.PrintHello("subsystem 1", Count);
+        IncCounter(Count);
+        pragma dispatch;
+      end loop;
+    end SayHello;
+
+  end Hello1;
+
+  subsystem Hello2 is
+
+    // A package global
+    Count : Counter;
+
+    main procedure SayHello is
+    begin
+      loop
+        pragma dispatch;
+        TerminalIO.PrintHello("subsystem 2", Count);
+        // We can name parameters (and must do so if there is possibility
+        // of getting the order wrong). We can also (but need not) repeat
+        // the parameter mode.
+        IncCounter(CountVar => in out Count);
+      end loop;
+    end SayHello;
+
+  begin
+    // Initialise the counter before the system starts to run
+    Count := Count'first;
+  end Hello2;
+
+  main procedure SayHello is
+  begin
+    for J : range 1..5 loop
+      TerminalIO.PrintHello("main", J);
+      pragma dispatch;
+    end loop;
+  end SayHello;
+
+end Hello;
+

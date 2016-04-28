@@ -1,0 +1,14 @@
+shared package TerminalIO is
+
+  pragma include("<stdio.h>");
+
+  // A procedure to print a hello message.
+  public procedure PrintHello(
+    Source : in string; Count  : in range 0..0xffff) is
+  begin
+  ! printf("Hello from %s: %u\n", `Source`, `Count`);
+    pragma unchecked_use(Source, Count);
+  end PrintHello;
+
+end TerminalIO;
+

@@ -1,0 +1,131 @@
+//
+// Controlled types 4
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  shared package TerminalIO is separate;
+
+  Print    : procedure renames TerminalIO.PrintString;
+  NewLine  : procedure renames TerminalIO.NewLine;
+  PrintNum : procedure renames TerminalIO.PrintNumber;
+
+  pragma include("<stdio.h>");
+
+  package FileIO using (usage => library) is
+
+    public type FileControl is controlled record
+    ! FILE *f;                           // A C field
+      LineCount : range 0..10000;
+    end record;
+
+    // A 'final in out' parameter finalises the corresponding actual parameter
+    public closed procedure CloseFileControl(FD : final in out FileControl) is
+    begin
+    ! fclose(`FD`->f);
+      Print("Number of lines=");
+      PrintNum(FD.LineCount);
+      NewLine;
+      // Use pragma finalised to declare that the formal parameter has been finalised
+      // (since the compiler knows nothing about fclose etc.)
+      pragma finalised(FD);
+    end CloseFileControl;
+
+    // Specify an 'access finalisation' procedure for controlled type FileControl, because
+    // we are going to create a type managed access FileControl.
+    // This must a be a closed procedure that has a single final in out parameter of
+    // the appropiate type.
+    // The procedure will be called automatically immediately before the record is actually freed.
+    type FileControl is controlled using (access_finalisation => CloseFileControl);
+
+    // In this case type File does not need to be declared 'controlled' because it is managed
+    public type File is managed access FileControl;
+
+    // This type does not need to be controlled because it does not contain
+    // controlled types
+    public type FileCopy is record
+      InFile   : File;
+      OutFile  : File;
+      Complete : boolean;
+    end record;
+
+    public closed procedure OpenFileForReading(FileName : in string; FD : out File) is
+    begin
+      FD := new (LineCount => 0);
+    ! (*`FD`)->all.f = fopen(`FileName`, "r");
+      pragma unchecked_use(FileName);
+    end OpenFileForReading;
+
+    public closed procedure OpenFileForWriting(FileName : in string; FD : out File) is
+    begin
+      FD := new (LineCount => 0);
+    ! (*`FD`)->all.f = fopen(`FileName`, "w");
+      pragma unchecked_use(FileName);
+    end OpenFileForWriting;
+
+    closed procedure IncLineCount(Count : in out FileControl'field_type(LineCount)) is
+    begin
+      if Count < Count'last then
+        Count := Count + 1;
+      end if;
+    end IncLineCount;
+
+    public closed procedure WriteToFile(Line : in string; FD : in File) is
+    begin
+    ! fputs(`Line`, `FD`->all.f);
+      pragma unchecked_use(Line);
+      IncLineCount(FD.LineCount);
+    end WriteToFile;
+
+    type BufferIndex is range 0..1000;
+
+    public procedure ReadFromFile(Line : out array <[BufferIndex]> of character; FD : in File; EndOfFile : out boolean) is
+      len : range for Line'length := Line'length;
+      res : address;
+    begin
+    ! `res` = fgets(`Line`, `len`, `FD`->all.f);
+      pragma unchecked_use(len, FD);
+      pragma unchecked_initialisation(res);
+      if res = NULL then
+        EndOfFile := true;
+        Line[Line'first] := 0 * character'unit;
+        pragma unchecked_initialisation(Line);
+      else
+        pragma unchecked_initialisation(Line);
+        IncLineCount(FD.LineCount);
+        EndOfFile := false;
+      end if;
+    end ReadFromFile;
+
+    function Eof(F : in File) : boolean is
+    begin
+    ! `Eof` = feof(`F`->f);
+      pragma unchecked_use(F);
+      pragma unchecked_initialisation(Eof);
+    end Eof;
+
+    public procedure CopyFile(Source, Dest : in string) is
+      FC   : FileCopy;
+      buff : array [range 0..99] of character;
+    begin
+      FC := (InFile   => OpenFileForReading(Source, this),
+             OutFile  => OpenFileForWriting(Dest, this),
+             Complete => false);
+      loop
+        ReadFromFile(buff, FC.InFile, FC.Complete);
+        exit when FC.Complete;
+        WriteToFile(buff, FC.OutFile);
+      end loop;
+      // FileCopy is not controlled, so there is no need to finalise FC.
+    end CopyFile;
+
+  end FileIO;
+
+  main procedure TestFile is
+  begin
+    FileIO.CopyFile(Source => "srcfile.txt", Dest => "destfile.txt");
+  end TestFile;
+
+end Hello;
+

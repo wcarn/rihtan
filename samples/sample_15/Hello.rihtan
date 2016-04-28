@@ -1,0 +1,81 @@
+//
+// Union records
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  shared package TerminalIO is separate;
+
+  Print    : procedure renames TerminalIO.PrintString;
+  NewLine  : procedure renames TerminalIO.NewLine;
+  PrintNum : procedure renames TerminalIO.PrintNumber;
+
+  type SensorMeasurement is record
+    Value    : range 0..255;
+    ErrorEst : range 0..20;
+  end record;
+
+  //
+  // A union takes the value of one of its fields at a time
+  //
+
+  type Measurement is union
+    MeasuredValue : SensorMeasurement;
+    AltMessage    : string;
+    Error         : null;                              // A null field has no data
+  end union;
+
+  public procedure MakeMeasurement(Meas : out Measurement; SetType : in (Val, Alt, Err)) is
+  begin
+    case SetType is
+      when Val => Meas := (MeasuredValue => (Value => 50, ErrorEst => 1));
+      when Alt => Meas := (AltMessage => "Message");
+      when Err => Meas := (Error =>);                  // Special syntax for a null field
+    end case;
+  end MakeMeasurement;
+
+  procedure DisplayMeasurement(Meas : in Measurement) is
+  begin
+    // A union contains a tag that indicates which field is valid at any time.
+    // Fields of a union can only be accessed within a case statement that
+    // tests the tag.
+    case Meas is
+      when MeasuredValue =>
+        PrintNum(Meas.MeasuredValue.Value);
+        Print(" +/- ");
+        PrintNum(Meas.MeasuredValue.ErrorEst);
+      when AltMessage =>
+        Print(Meas.AltMessage);
+      when Error =>
+        Print("Measurement error");
+    end case;
+  end DisplayMeasurement;
+
+  //
+  // An unchecked union also takes the value of one of its fields,
+  // but without any tag or checking
+  //
+
+  type OverlayInt is unchecked union
+    ValU : Target.unsigned_8;
+    ValS : Target.signed_8;
+  end union;
+
+  main procedure Unions is
+    M1, M2, M3 : Measurement;
+    OV1 : OverlayInt;
+  begin
+    MakeMeasurement(M1, Val);
+    MakeMeasurement(M2, Alt);
+    MakeMeasurement(M3, Err);
+    DisplayMeasurement(M1); NewLine;
+    DisplayMeasurement(M2); NewLine;
+    DisplayMeasurement(M3); NewLine;
+    OV1 := (ValS => -1);
+    PrintNum(OV1.ValU);
+    NewLine;
+  end Unions;
+
+end Hello;
+

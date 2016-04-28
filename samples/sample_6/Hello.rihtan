@@ -1,0 +1,77 @@
+//
+// Add some counters
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  type Counter is range 1..10;
+
+  // The package is in a separate file, but logically here
+  shared package TerminalIO is separate;
+
+  subsystem Hello1 is
+
+    main procedure SayHello is
+      Count : Counter;
+    begin
+      Count := Counter'first;
+      loop
+        TerminalIO.PrintHello("subsystem 1", Count);
+        // Increment Count safely.
+        // The following must demonstrably apply to each assignment:
+        // - It must be possible to evaluate the expression on the RHS
+        //   without overflow using the types that are available on the
+        //   target (the compiler will insert casts if necessary)
+        // - The result of the RHS expession must in in range of the
+        //   variable on the LHS
+        // Hence the if test is required.
+        if Count < Count'last then
+          Count := Count + 1;
+        else
+          Count := Count'first;
+        end if;
+        // Note that the following are equivalent in this case:
+        //   Count'last
+        //   Counter'last
+        //   Count'type'last
+        //
+        pragma dispatch;
+      end loop;
+    end SayHello;
+
+  end Hello1;
+
+  subsystem Hello2 is
+
+    // A package global
+    Count : Counter;
+
+    main procedure SayHello is
+    begin
+      loop
+        pragma dispatch;
+        TerminalIO.PrintHello("subsystem 2", Count);
+        if Count < Count'last then
+          Count := Count + 1;
+        else
+          Count := Count'first;
+        end if;
+      end loop;
+    end SayHello;
+
+  begin
+    // Initialise the counter before the system starts to run
+    Count := Count'first;
+  end Hello2;
+
+  main procedure SayHello is
+  begin
+    for J : range 1..5 loop
+      TerminalIO.PrintHello("main", J);
+      pragma dispatch;
+    end loop;
+  end SayHello;
+
+end Hello;
+

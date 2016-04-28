@@ -1,0 +1,40 @@
+Contents of the sample directories
+----------------------------------
+
+1  Minimal system
+2  Minimal system plus a main procedure
+3  Minimal system plus a main procedure and subsystems
+4  Simple loops
+5  Simple integer type declaration; for statement; shared package; target definition; separate package
+6  Updating a counter
+7  Shared procedures
+8  Generic packages; library usage clauses
+9  Enumerated types; restarting subsystems
+10 Abstract data type
+11 Sharing global variables between subsystems
+12 If, loop, exit, while, for, do, case and declare statements
+13 Arrays
+14 Records
+15 Unions and unchecked unions
+16 Access types 1     - access, access constant, access new, access or null, new, free
+17 Access types 2     - managed access types
+18 Access types 3     - persistent access types
+19 Controlled types 1 - introduction
+20 Controlled types 2 - records and arrays that contain fields of controlled types
+21 Controlled types 3 - access types
+22 Controlled types 4 - managed access types; access_finalisation
+23 Preconditions and postconditions
+24 Virtual variables
+25 Representation for integers, lookup tables
+
+To build sample n:
+
+cd sample_n
+~/rihtan/bin/rihtan Hello.rihtan
+gcc *.c -o Hello
+
+(similarly for a Windows host, but run rihtan.exe Hello.rihtan and gcc *.c -o Hello.exe)
+
+The samples are copyright 2015 William Carney and licensed under the
+Apache License, Version 2.0 - see LICENSE in the base directory of
+this repository.

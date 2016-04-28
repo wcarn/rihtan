@@ -1,0 +1,13 @@
+//
+// Add a main procedure
+//
+system Hello is
+
+  pragma include("<stdio.h>");
+  
+  main procedure SayHello is
+  begin
+  ! printf("Hello from main\n");
+  end SayHello;
+
+end Hello;

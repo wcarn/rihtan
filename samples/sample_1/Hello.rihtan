@@ -1,0 +1,10 @@
+//
+// This is a minimal system that does nothing
+//
+system Hello is
+
+  // This system does not have a main procedure - confirm that this is intentional
+  pragma no_main;
+  
+end Hello;
+

@@ -1,0 +1,92 @@
+//
+// Generics, library usage clauses
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  type Counter is range 1..10;
+
+  // The package is in a separate file, but logically here
+  shared package TerminalIO is separate;
+
+  //
+  // A generic shared package of integer operations, which we can
+  // instantiate to make particular real packages
+  //
+  shared generic
+    type IntType is range;             // 'range' means any integer type
+  package IntegerOps using (usage => library) is
+
+    // usage => library means that it is not an error if a routine
+    // in the package is not used; any that are not used will be
+    // excluded from the target program
+    // The other options are 'target_library' for routines that will
+    // always be included in the target program, even if not used,
+    // and 'required' (must be used at least once), which is the default.
+
+    public procedure WrapUp(Num : in out IntType) is
+    begin
+      if Num < IntType'last then
+        Num := Num + 1;
+      else
+        Num := IntType'first;
+      end if;
+    end WrapUp;
+
+    public procedure WrapDown(Num : in out IntType) is
+    begin
+      if Num > IntType'first then
+        Num := Num - 1;
+      else
+        Num := IntType'last;
+      end if;
+    end WrapDown;
+
+  end IntegerOps;
+
+  // Instantiate IntegerOps with Counter to create CounterOps
+  shared package CounterOps is new IntegerOps(IntType => Counter);
+
+  subsystem Hello1 is
+
+    main procedure SayHello is
+      Count : Counter;
+    begin
+      Count := Counter'first;
+      loop
+        TerminalIO.PrintHello("subsystem 1", Count);
+        CounterOps.WrapUp(Count);
+        pragma dispatch;
+      end loop;
+    end SayHello;
+
+  end Hello1;
+
+  subsystem Hello2 is
+
+    Count : Counter;
+
+    main procedure SayHello is
+    begin
+      loop
+        pragma dispatch;
+        TerminalIO.PrintHello("subsystem 2", Count);
+        CounterOps.WrapUp(Num => in out Count);
+      end loop;
+    end SayHello;
+
+  begin
+    Count := Count'first;
+  end Hello2;
+
+  main procedure SayHello is
+  begin
+    for J : range 1..5 loop
+      TerminalIO.PrintHello("main", J);
+      pragma dispatch;
+    end loop;
+  end SayHello;
+
+end Hello;
+

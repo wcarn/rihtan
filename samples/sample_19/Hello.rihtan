@@ -1,0 +1,74 @@
+//
+// Controlled types 1
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  shared package TerminalIO is separate;
+
+  Print    : procedure renames TerminalIO.PrintString;
+  NewLine  : procedure renames TerminalIO.NewLine;
+  PrintNum : procedure renames TerminalIO.PrintNumber;
+
+  pragma include("<stdio.h>");
+
+  package FileIO is
+
+    // A controlled type - objects must be finalised before they disappear
+    // i.e. before the procedure or block exits in the case of local variables, or
+    // in a package 'final' section in the case of packages
+    public type File is controlled record
+    ! FILE *f;                           // A C field
+      LineCount : range 0..10000;
+    end record;
+
+    public procedure OpenFileForWriting(FileName : in string; FD : out File) is
+    begin
+      FD := (LineCount => 0);
+    ! `FD`->f = fopen(`FileName`, "w");
+      pragma unchecked_use(FileName);
+    end OpenFileForWriting;
+
+    public procedure WriteToFile(Line : in string; FD : in out File) is
+    begin
+    ! fputs(`Line`, `FD`->f);
+    ! fputs("\n", `FD`->f);
+      pragma unchecked_use(Line);
+      declare
+        Count : File'field_type(LineCount) renames FD.LineCount;
+      begin
+        if Count < Count'last then
+          Count := Count + 1;
+        end if;
+      end;
+    end WriteToFile;
+
+    // A 'final in out' parameter finalises the corresponding actual parameter
+    public procedure CloseFile(FD : final in out File) is
+    begin
+    ! fclose(`FD`->f);
+      Print("Number of lines=");
+      PrintNum(FD.LineCount);
+      NewLine;
+      // Use pragma finalised to declare that the formal parameter has been finalised
+      // (since the compiler knows nothing about fclose etc.)
+      pragma finalised(FD);
+    end CloseFile;
+
+  end FileIO;
+
+  main procedure TestFile is
+    F1 : FileIO.File;
+  begin
+    FileIO.OpenFileForWriting("output1.txt", F1);
+    FileIO.WriteToFile("File 1 Line 1", F1);
+    FileIO.WriteToFile("File 1 Line 2", F1);
+    FileIO.CloseFile(F1);
+    FileIO.OpenFileForWriting("output2.txt", F1);
+    FileIO.WriteToFile("File 2 Line 1", F1);
+    FileIO.CloseFile(F1);
+  end TestFile;
+
+end Hello;
+

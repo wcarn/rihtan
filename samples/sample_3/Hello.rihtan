@@ -1,0 +1,32 @@
+//
+// Add some subsystems
+//
+system Hello using (task_implementation => cyclic) is
+
+  pragma include("<stdio.h>");
+
+  subsystem Hello1 is
+  
+    main procedure SayHello is
+    begin
+    ! printf("Hello from subsystem 1\n");
+    end SayHello;
+
+  end Hello1;
+
+  subsystem Hello2 is
+  
+    main procedure SayHello is
+    begin
+    ! printf("Hello from subsystem 2\n");
+    end SayHello;
+
+  end Hello2;
+
+  main procedure SayHello is
+  begin
+  ! printf("Hello from main\n");
+  end SayHello;
+
+end Hello;
+

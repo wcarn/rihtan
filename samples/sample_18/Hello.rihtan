@@ -1,0 +1,84 @@
+//
+// Access types 3
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  shared package TerminalIO is separate;
+
+  Print    : procedure renames TerminalIO.PrintString;
+  NewLine  : procedure renames TerminalIO.NewLine;
+  PrintNum : procedure renames TerminalIO.PrintNumber;
+
+  type Measurement is record
+    Value    : range 0..255;
+    ErrorEst : range 0..20;
+  end record;
+
+  // An array of measurements
+  type MeasurementSet is array [range 1..10] of Measurement;
+
+  //
+  Set1, Set2 : MeasurementSet;
+
+  // An access to the active set. Persistent access values can only refer to global
+  // variables; thus they are never 'dangling'. Other access values cannot be
+  // assigned to global variables unless they are 'managed' or 'access new' (which
+  // guarantee that the accessed values are on the heap, not local variables).
+  ActiveSet : persistent access MeasurementSet;
+
+  procedure UpdateActiveSet is
+  begin
+    for J : ActiveSet.all'index_type loop
+      declare
+        Val : Measurement.Value'type renames ActiveSet[J].Value;
+      begin
+        if Val < Val'last then
+          Val := Val + 1;
+        end if;
+      end;
+    end loop;
+  end UpdateActiveSet;
+
+  procedure SetActiveSet(MeasSet : in persistent access MeasurementSet) is
+  begin
+    ActiveSet := MeasSet;
+  end SetActiveSet;
+
+  procedure DisplayMeasurement(Meas : in Measurement) is
+  begin
+    PrintNum(Meas.Value);
+    Print(" +/- ");
+    PrintNum(Meas.ErrorEst);
+  end DisplayMeasurement;
+
+  procedure PrintSet(MeasSet : in MeasurementSet) is
+  begin
+    for J : MeasSet'index_type loop
+      Print(" ");
+      DisplayMeasurement(MeasSet[J]);
+    end loop;
+    NewLine;
+  end PrintSet;
+
+  procedure InitialiseSet(MeasSet : out MeasurementSet) is
+  begin
+    MeasSet := [range j => (Value => 0, ErrorEst => 0)];
+  end InitialiseSet;
+
+  main procedure TestAccess3 is
+  begin
+    InitialiseSet(Set1);
+    InitialiseSet(Set2);
+    Print("Set1:"); PrintSet(Set1);
+    Print("Set2:"); PrintSet(Set2);
+    SetActiveSet(Set2'persistent_access);
+    UpdateActiveSet;
+    Print("Set1:"); PrintSet(Set1);
+    Print("Set2:"); PrintSet(Set2);
+    Print("Done"); NewLine;
+  end TestAccess3;
+
+end Hello;
+

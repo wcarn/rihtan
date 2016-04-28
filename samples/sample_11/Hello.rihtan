@@ -1,0 +1,160 @@
+//
+// Sharing global variables between subsystems
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  shared package TerminalIO is separate;
+
+  //
+  // 1. Make it 'shared atomic'; it can then be accessed directly
+  //    without locking. This also makes it volatile.
+
+  // Tell the implementation to use the C type that is labelled 'unsigned_16'
+  // in the target package (see TargetCPU16) for TShared1 (otherwise the
+  // compiler will choose a type that fits, which would be
+  // unsigned_16 anyway in this case).
+  type TShared1 is range 1..2000 using (word_type => unsigned_16);
+
+  // Declare the access mode 'shared atomic' for the variable. This works
+  // because unsigned_16 is atomic (see the target package).
+  Var1 : TShared1 using (access_mode => shared_atomic);
+
+  Var2a : range 0..1 using (access_mode => shared_atomic);
+
+  // word_type applies to the type; access_mode applies to the variable
+  Var2b : (range 0..1 using (word_type => unsigned_16))
+            using (access_mode => shared_atomic);
+
+  //
+  // 2. Make it 'shared'. In this case it must be locked either by being
+  //    passed as a parameter, or with a 'lock' clause on a procedure
+  //    declaration.
+  //
+  //    Under the Contiki and Cyclic models, these locks don't actually do
+  //    anything at runtime (zero overhead).
+
+  type Arr3 is array [range -5..5] of range 0..100;
+
+  shared Var3 : Arr3;
+
+  type Rec4 is record
+    Field1 : range 0..0xff;
+    Field2 : boolean;
+  end record;
+
+  shared Var4 : Rec4;
+
+  //
+  // 3. Enclose it in a shared package and access it through a procedural
+  //    interface
+  //
+
+  shared package CounterRecords is
+
+    public type CounterRecord is public record
+      MajorPart : range 0..Target.unsigned_16'last;
+      MinorPart : range 0..Target.unsigned_16'last;
+    end record;
+
+    public type CounterIndex is public range 1..3;
+
+    Counters : array [CounterIndex] of CounterRecord;
+
+    public procedure IncCounter(Index : in CounterIndex) is
+    begin
+      declare
+        C : CounterRecord renames Counters[Index];
+        MajorVal : CounterRecord'field_type(MajorPart) renames C.MajorPart;
+        MinorVal : CounterRecord'field_type(MinorPart) renames C.MinorPart;
+      begin
+        if MinorVal = MinorVal'last then
+          if MajorVal < MajorVal'last then
+            MajorVal := MajorVal + 1;
+            MinorVal := 0;
+          end if;
+        else
+          MinorVal := MinorVal + 1;
+        end if;
+      end;
+    end IncCounter;
+
+    public procedure GetCounter(
+      Index : in CounterIndex; CounterVal : out CounterRecord) is
+    begin
+      CounterVal := Counters[Index];
+    end GetCounter;
+
+  begin
+    Counters := [range j => (MajorPart => 0, MinorPart => 0)];
+  end CounterRecords;
+
+  shared procedure p1(A1 : in Arr3; R1 : out Rec4; B1 : in boolean) is
+  begin
+    R1 := (Field1 => A1[2], Field2 => B1);
+  end p1;
+
+  subsystem Hello1 is
+
+    procedure UpdateArray(aa : in out Arr3) is
+    begin
+      aa[3] := aa[2];
+    end UpdateArray;
+
+    main procedure Hello1Main is
+    begin
+      // Reads and writes to Var1 can be made directly
+      Var1 := 500;
+      // Var3 and Var4 will be locked simultaneously at the point of this
+      // call. The call will be suspended until this can be achieved.
+      p1(Var3, Var4, true);
+      // This call will lock Var3
+      UpdateArray(Var3);
+    end Hello1Main;
+
+  end Hello1;
+
+  subsystem Hello2 is
+
+    // Lock Var3 and Var4 simultaneously when calling this function (this is
+    // an alternative to passing them as actual parameters)
+    procedure UpdateGlobals(B : in boolean)
+      using (lock => Var3, lock => Var4) is
+    begin
+      Var3 := [ range j => Var3'element_type'first ];
+      Var4.Field2 := not B;
+    end UpdateGlobals;
+
+    main procedure Hello2Main is
+      LocalArr : Arr3;
+      CountVal : CounterRecords.CounterRecord;
+    begin
+      LocalArr := [ range j => j + 5 ];
+      // Var4 will be locked at the point of this call
+      p1(LocalArr, Var4, false);
+      // No lock is required here
+      LocalArr[LocalArr'last] := Var1 mod LocalArr'element_type'last + 1;
+      //
+      UpdateGlobals(false);
+      //
+      CounterRecords.IncCounter(2);
+      CounterRecords.GetCounter(2, CountVal);
+      pragma unchecked_use(CountVal);
+    end Hello2Main;
+
+  end Hello2;
+
+  pragma no_main;
+
+  // Unused variables
+  pragma unchecked_initialisation(Var2a, Var2b, Var4);
+  pragma unchecked_use(Var2a, Var2b, Var4);
+
+begin
+  // Initialisation sections run in sequence before any main procedures
+  // start - no locks are required
+  Var3 := [range j => 0];
+  Var1 := 1;
+end Hello;
+

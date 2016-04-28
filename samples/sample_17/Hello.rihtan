@@ -1,0 +1,103 @@
+//
+// Access types 2
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  shared package TerminalIO is separate;
+
+  Print    : procedure renames TerminalIO.PrintString;
+  NewLine  : procedure renames TerminalIO.NewLine;
+  PrintNum : procedure renames TerminalIO.PrintNumber;
+
+  type Measurement is record
+    Value    : range 0..255;
+    ErrorEst : range 0..20;
+  end record;
+
+  // Create a measurement on the heap
+  // 'managed access' values are reference-counted and freed automatically
+  procedure MakeMeasurement(
+      Val  : in Measurement.Value'type;
+      Err  : in Measurement.ErrorEst'type;
+      Meas : out managed access Measurement) is
+  begin
+    Meas := new (Value => Val, ErrorEst => Err);
+  end MakeMeasurement;
+
+  procedure DisplayMeasurement(Meas : in Measurement) is
+  begin
+    // The object accessed by Meas is Meas.all
+    // Meas.Value is an abbreviation for Meas.all.Value
+    PrintNum(Meas.Value);
+    Print(" +/- ");
+    PrintNum(Meas.ErrorEst);
+  end DisplayMeasurement;
+
+  // Forward declare MeasurementListElt so that it can be used to declare
+  // an access type within its own definition.
+  type MeasurementListElt;
+
+  type MeasurementListElt is record
+    Meas : Measurement;
+    Next : managed access or null MeasurementListElt;
+  end record;
+
+  Head, Tail : managed access or null MeasurementListElt;
+
+  procedure CopyToList(M : in Measurement) is
+  begin
+    if Tail = null then
+      Tail := new (Meas => M, Next => null);
+      Head := Tail;
+    else
+      Tail.Next := new (Meas => M, Next => null);
+      Tail := Tail.Next;
+    end if;
+    // Either way, at this point Head will have been initalised
+    pragma unchecked_initialisation(Head);
+  end CopyToList;
+
+  procedure PrintList is
+    M : managed access or null MeasurementListElt;
+  begin
+    M := Head;
+    while M /= null loop
+      DisplayMeasurement(M.Meas);
+      Print(" ");
+      M := M.Next;
+    end loop;
+    NewLine;
+  end PrintList;
+
+  procedure TestAccess2 is
+    type AccessMeasurement is managed access Measurement;
+    M1, M2, M3 : AccessMeasurement;  // Could have just put 'managed access Measurement' here
+  begin
+    MakeMeasurement(Val => 10, Err => 1, Meas => M1);
+    MakeMeasurement(Val => 20, Err => 2, Meas => M2);
+    MakeMeasurement(Val => 30, Err => 3, Meas => M3);
+    // This version of DisplayMeasurement expects a Measurement value
+    // M1.all etc. yield Measurement values
+    // It will be passed by reference anyway because it's a record,
+    // so there's no additional overhead
+    DisplayMeasurement(M1.all); NewLine;
+    DisplayMeasurement(M2.all); NewLine;
+    DisplayMeasurement(M3.all); NewLine;
+    CopyToList(M1.all);
+    CopyToList(M2.all);
+    CopyToList(M3.all);
+    PrintList;
+    Print("Done"); NewLine;
+  end TestAccess2;
+
+  main procedure Test is
+  begin
+    TestAccess2;
+  end Test;
+
+begin
+  Tail := null;
+end Hello;
+

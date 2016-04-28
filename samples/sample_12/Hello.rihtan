@@ -1,0 +1,147 @@
+//
+// If, loop, exit, while, for, do, case and declare statements
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  shared package TerminalIO is separate;
+
+  Print   : procedure renames TerminalIO.PrintString;
+  NewLine : procedure renames TerminalIO.NewLine;
+
+  procedure IfDemo(Num : in range 1..5) is
+  begin
+    if Num = 1 then
+      Print("One");
+      NewLine;
+    elsif Num = 2 then
+      Print("Two");
+      NewLine;
+    elsif Num = 3 then
+      Print("Three");
+      NewLine;
+    else
+      Print("Four or five");
+      NewLine;
+    end if;
+  end IfDemo;
+
+  procedure LoopDemo is
+    Count : range 1..5;
+  begin
+    Print("Indefinite loop"); NewLine;
+    Count := Count'first;
+    loop
+      Print(".");
+      exit when Count = Count'last;
+      Count := Count + 1;
+      Print("-");
+    end loop;
+    NewLine;
+    Print("While loop"); NewLine;
+    Count := Count'first;
+    while Count < Count'last loop
+      Print("*");
+      Count := Count + 1;
+    end loop;
+    NewLine;
+    Print("For loops"); NewLine;
+    // Full specification - give the type and the range of the loop
+    for J : Count'type in Count'first..Count'first + 1 loop
+      Print("1");
+    end loop;
+    NewLine;
+    // Abbreviation - give the type only - the full range of the type will be used
+    for J : Count'type loop
+      Print("2");
+    end loop;
+    NewLine;
+    // Declare a type anonymously and use its full range
+    for J : range 1..10 loop
+      Print("3");
+    end loop;
+    NewLine;
+  end LoopDemo;
+
+  procedure DoDemo(Err1 : in boolean; Err2 : in boolean) is
+  begin
+    Print("Do statement"); NewLine;
+    do
+      Print("Point A");
+      NewLine;
+      exit when Err1;
+      Print("Point B");
+      NewLine;
+      exit when Err2;
+      Print("Point C");
+      NewLine;
+    end do;
+    Print("After do statement"); NewLine;
+  end DoDemo;
+
+  type TT is (AA, BB, CC, DD, EE, FF);
+
+  procedure CaseDemo(X : in TT) is
+  begin
+    Print("Case statement"); NewLine;
+    if X <= DD then
+      Print("Case: ");
+      case X is
+        when AA =>
+          Print("AA");
+        when BB =>
+          Print("BB");
+          Print("...");
+        when CC | DD =>
+          Print("CC or DD");
+      end case;
+    else
+      Print("EE..FF");
+    end if;
+    NewLine;
+  end CaseDemo;
+
+  procedure DeclareDemo(Mult : in range 1..2) is
+    Triple : array [range 0..2] of range 10..20 := [ 0 => 10, 1 => 15, 2 => 20 ];
+  begin
+    Print("Declare"); NewLine;
+    declare
+      FirstElt : Triple'element_type renames Triple[Triple'first];
+      Total    : range for Triple'element_type * Triple'length * Mult;
+    begin
+      Total := (FirstElt + Triple[1] + Triple[2]) * Mult;
+      Print("First="); TerminalIO.PrintNumber(FirstElt); NewLine;
+      Print("Total="); TerminalIO.PrintNumber(Total); NewLine;
+    end;
+    Print("Done");
+    NewLine;
+  end DeclareDemo;
+
+  main procedure Flow is
+  begin
+    // If tests
+    IfDemo(1);
+    IfDemo(2);
+    IfDemo(3);
+    IfDemo(4);
+    // Loops
+    LoopDemo;
+    // Do statement
+    DoDemo(Err1 => false, Err2 => false);
+    DoDemo(Err1 => false, Err2 => true);
+    DoDemo(Err1 => true,  Err2 => false);
+    // Case statement
+    CaseDemo(AA);
+    CaseDemo(BB);
+    CaseDemo(CC);
+    CaseDemo(DD);
+    CaseDemo(EE);
+    CaseDemo(FF);
+    // Declare block
+    DeclareDemo(1);
+    DeclareDemo(2);
+  end Flow;
+
+end Hello;
+

@@ -1,0 +1,17 @@
+shared package TerminalIO is
+
+  pragma include("<stdio.h>");
+
+  public procedure PrintString(Str : in string) is
+  begin
+  ! printf("%s\n", `Str`);
+    pragma unchecked_use(Str);
+  end PrintString;
+
+  public procedure NewLine is
+  begin
+  ! printf("\n");
+  end NewLine;    
+
+end TerminalIO;
+

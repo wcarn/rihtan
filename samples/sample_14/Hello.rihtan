@@ -1,0 +1,139 @@
+//
+// Simple records
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  shared package TerminalIO is separate;
+
+  Print    : procedure renames TerminalIO.PrintString;
+  NewLine  : procedure renames TerminalIO.NewLine;
+  PrintNum : procedure renames TerminalIO.PrintNumber;
+
+  type Date is record
+    Year  : range 2000..2199;
+    Month : (Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec);
+    Day   : range 1..31;
+  end record;
+
+  type TimeOfDay is record
+    Hour   : range 0..23;
+    Minute : range 0..59;
+    Second : range 0..59;
+  end record;
+
+  procedure PrintDate(D : in Date) is
+    MonthStr : array [Date'field_type(Month)] of string := [
+      Jan => "January",
+      Feb => "February",
+      Mar => "March",
+      Apr => "April",
+      May => "May",
+      Jun => "June",
+      Jul => "July",
+      Aug => "August",
+      Sep => "September",
+      Oct => "October",
+      Nov => "November",
+      Dec => "December"
+    ] using (access_mode => image);
+  begin
+    PrintNum(D.Day);
+    Print(" ");
+    Print(MonthStr[D.Month]);
+    Print(" ");
+    PrintNum(D.Year);
+  end PrintDate;
+
+  procedure PrintTime(T : in TimeOfDay) is
+  begin
+    PrintNum(T.Hour);   Print(":");
+    PrintNum(T.Minute); Print(":");
+    PrintNum(T.Second);
+  end PrintTime;
+
+  type Event is record
+    TimeStamp : record
+                  DatePart : Date;
+                  TimePart : TimeOfDay;
+                end record;
+    EventType : (Start, Test, Stop);
+  end record;
+
+  procedure PrintEvent(E : in Event) is
+  begin
+    PrintDate(E.TimeStamp.DatePart);
+    Print(" ");
+    PrintTime(E.TimeStamp.TimePart);
+    Print(" ");
+    case E.EventType is
+      when Start => Print("Start");
+      when Test  => Print("Test");
+                    Print("...");
+      when Stop  => Print("Stop");
+    end case;
+    NewLine;
+  end PrintEvent;
+
+  procedure Records1 is
+    D1 : Date := (Year => 2014, Month => Nov, Day => 17);
+    E1 : Event;
+  begin
+    PrintDate(D1);
+    NewLine;
+    E1 := (TimeStamp => 
+             (DatePart => D1,
+              TimePart => (Hour => 17, Minute => 45, Second => 2)
+             ),
+           EventType => Test
+          );
+    PrintEvent(E1);
+  end Records1;
+
+  procedure PrintDateArray(Dates : in array <[range 0..100]> of Date) is
+  begin
+    for d : Dates'index_type in Dates'first..Dates'last loop
+      PrintDate(Dates[d]);
+      Print(" ");
+    end loop;
+  end PrintDateArray;
+
+  closed procedure MakeDate(SetDay : in Date'field_type(Day); D : out Date) is
+  begin
+    D := (Year => 2014, Month => Dec, Day => SetDay);
+  end MakeDate;
+    
+  procedure Records2 is
+    Dates1, Dates2 : array [range 1..10] of Date;
+    Event1 : Event;
+  begin
+    // Initialise an array of records
+    Dates1 := [range j => (Year => 2014, Month => Dec, Day => 10 + j)];
+    Print("Dates1: ");
+    PrintDateArray(Dates1);
+    NewLine;
+    // What if we want to generate each one in another routine? Functions can't return
+    // records, but we can use the special actual parameter 'this', which must correspond
+    // to an out parameter of a closed procedure (i.e. one that is intentionally side-effect free)
+    Dates2 := [range j => MakeDate(10 + j, this)];
+    Print("Dates2: ");
+    PrintDateArray(Dates2);
+    NewLine;
+    // This also applies to record fields
+    Event1 := (TimeStamp => (DatePart => MakeDate(1, this),
+                             TimePart => (Hour => 15, Minute => 20, Second => 30)
+                            ),
+               EventType => Test
+              );
+    PrintEvent(Event1);
+  end Records2;
+
+  main procedure Records is
+  begin
+    Records1;
+    Records2;
+  end Records;
+
+end Hello;
+

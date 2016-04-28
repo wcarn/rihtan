@@ -1,0 +1,63 @@
+//
+// Virtual variables
+//
+system Hello using (task_implementation => cyclic) is
+
+  package Target is separate("TargetCPU16.rihtan");
+
+  shared package TerminalIO is separate;
+
+  Print    : procedure renames TerminalIO.PrintString;
+  NewLine  : procedure renames TerminalIO.NewLine;
+  PrintNum : procedure renames TerminalIO.PrintNumber;
+
+  // In this case EngineState is only read in preconditions and postconditions, so
+  // it does not need to exist at runtime.
+  EngineState : (Idle, Running, Stopped) using (access_mode => virtual);
+
+  Speed       : range 0..2;
+
+  procedure StartEngine
+    using (precondition  => EngineState = Idle,
+           postcondition => EngineState = Running and Speed = Speed'first) is
+  begin
+    // The precondition is assumed to be true here. Preconditions and postconditions
+    // can refer to globals and to parameters (globals in this case).
+    Print("Start"); NewLine;
+    Speed := Speed'first;
+    // EngineState is virtual, so this assignment will not appear in the generated program,
+    // but it will still be analysed
+    EngineState := Running;
+    // The postcondition is tested here
+  end StartEngine;
+
+  procedure ChangeSpeedUp
+    using (precondition  => EngineState = Running and Speed < Speed'last,
+           postcondition => Speed = Speed'initial + 1) is
+  begin
+    // The precondition is assumed to be true here
+    Print("Change speed"); NewLine;
+    Speed := Speed + 1;
+    // The postcondition is tested here.
+    // Speed'initial means the value of Speed at the start of the call.
+  end ChangeSpeedUp;
+
+  procedure StopEngine
+    using (precondition  => EngineState /= Stopped,
+           postcondition => EngineState = Stopped) is
+  begin
+    Print("Stop"); NewLine;
+    EngineState := Stopped;
+  end StopEngine;
+
+  main procedure Test is
+  begin
+    EngineState := Idle;
+    StartEngine;
+    ChangeSpeedUp;
+    ChangeSpeedUp;
+    StopEngine;
+  end Test;
+
+end Hello;
+

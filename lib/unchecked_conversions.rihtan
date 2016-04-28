@@ -1,0 +1,19 @@
+generic
+  type SourceType;
+  type TargetType;
+package unchecked_conversions using (usage => library) is
+
+  public function convert_from(Source : in SourceType) : TargetType
+    using (code => macro) is
+  begin
+  ! (`TargetType`)(`Source`)
+  end convert_from;
+
+  public procedure convert(SourceVar : in SourceType; TargetVar : out TargetType)
+    using (require_named_parameters, code => macro) is
+  begin
+  ! *(`TargetVar`) = (`TargetType`)(`SourceVar`);
+  end convert;
+
+end unchecked_conversions;
+

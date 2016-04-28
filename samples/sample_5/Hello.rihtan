@@ -1,0 +1,84 @@
+//
+// Add some counters
+//
+system Hello using (task_implementation => cyclic) is
+
+  // Now we will be using variables, so we need to be able to
+  // create types. In order to do this, we need to import
+  // definitions that map from our program to the C target.
+  package Target is separate("TargetCPU16.rihtan");
+
+  // Declare a type with the indicated range. The compiler will implement
+  // this using a C type from the target definition, but it analyses the
+  // program using the declared range, not the range of the C type.
+  type Counter is range 1..10;
+
+  //
+  // A package of IO routines
+  // By declaring the package 'shared', we guarantee serial access under all
+  // tasking models. If we did not declare it 'shared', then the compiler would
+  // insist that separate restrictions are applied to every procedure that
+  // could be called from different susbsystems, in order to prevent access
+  // contention and race conditions.
+  // Under the 'contiki' and 'cyclic' models, there is no overhead for
+  // shared packages.
+  //
+  shared package TerminalIO is
+
+    pragma include("<stdio.h>");
+
+    // A procedure to print a hello message. We declare it 'public' so that
+    // it will be visible from outside the package.
+    // string is one of the few predefined types (the others are
+    // character and boolean)
+    // Note that we don't use 'int' or anything similar for the second
+    // parameter. In this case we declare a type anonymously. We could
+    // also use a previously named type (like Counter).
+    public procedure PrintHello(
+      Source : in string; Count : in range 0..0xffff) is
+    begin
+      // The backquote notation maps from source names to C names
+    ! printf("Hello from %s: %u\n", `Source`, `Count`);
+      // The compiler doesn't know how Source and Count were used (it doesn't
+      // analyse C code), so we tell it that Source and Count were read
+      pragma unchecked_use(Source, Count);
+    end PrintHello;
+
+  end TerminalIO;
+
+  subsystem Hello1 is
+  
+    main procedure SayHello is
+    begin
+      loop
+        // Call the PrintHello procedure in the TerminalIO package.
+        // This call also illustrates the syntax for attributes ('first).
+        TerminalIO.PrintHello("subsystem 1", Counter'first);
+        pragma dispatch;
+      end loop;
+    end SayHello;
+
+  end Hello1;
+
+  subsystem Hello2 is
+  
+    main procedure SayHello is
+    begin
+      loop
+        pragma dispatch;
+        TerminalIO.PrintHello("subsystem 2", Counter'last);
+      end loop;
+    end SayHello;
+
+  end Hello2;
+
+  main procedure SayHello is
+  begin
+    for J : range 1..5 loop
+      TerminalIO.PrintHello("main", J);
+      pragma dispatch;
+    end loop;
+  end SayHello;
+
+end Hello;
+
