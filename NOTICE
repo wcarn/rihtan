@@ -1,8 +1,0 @@
-Rihtan programming language
-Copyright 2015, 2016 William Carney
-
-The Rihtan project includes the design of the Rihtan language,
-a compiler that translates Rihtan source to C source,
-some Rihtan packages for use in Rihtan programs, a set of
-sample programs, documentation, and a program to extract
-subsets of source files.
