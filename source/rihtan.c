@@ -10369,7 +10369,7 @@ NonStaticConstBoolean (char *filename, int line, bool val)
     s = "true";
   else
     s = "false";
-  err (filename, line,
+  err_and_continue (filename, line,
        "A test cannot be non-static but ineffective (in this case always %s)",
        s);
 }
@@ -10632,22 +10632,19 @@ AnalyseWhen (int depth,
         {
           NonStaticConstBoolean (cond->FileName, cond->Line, TRUE);
         }
-      else
-        {
-          //
-          // Otherwise, attempt to update ranges based on the assumption that the expression
-          // is true.
-          //
-          success = TRUE;
-          alwaysfails = FALSE;  //**********THESE ARE REUNDANT NOW
-          alwayspasses = TRUE;
-          UpdateRanges (cond, FALSE, &success, TRUE, FALSE);
-          // If we have just proved that it always fails, then it can't always pass (even if we
-          // haven't actually proved that)
-          // Save the var changes from the test because accessing a variable in the test is also regarded as
-          // an access of it
-          testvars = StoreDynamicValues ();
-        }
+      //
+      // Attempt to update ranges based on the assumption that the expression
+      // is true.
+      //
+      success = TRUE;
+      alwaysfails = FALSE;  //**********THESE ARE REUNDANT NOW
+      alwayspasses = TRUE;
+      UpdateRanges (cond, FALSE, &success, TRUE, FALSE);
+      // If we have just proved that it always fails, then it can't always pass (even if we
+      // haven't actually proved that)
+      // Save the var changes from the test because accessing a variable in the test is also regarded as
+      // an access of it
+      testvars = StoreDynamicValues ();
     }
   // Note that this is asymmetrical because the initial assumption is that it always passes
   // and does not always fail.
@@ -10944,10 +10941,10 @@ ScanLoopBody (struct tElt *elt)
   LoopScan = TRUE;
   memcpy (saved_recovery, error_recovery, sizeof (jmp_buf));
   // Trap errors here so we can restore LoopScan
-  if (setjmp (error_recovery) == 0)
+  while (elt != NULL)
     {
 
-      while (elt != NULL)
+      if (setjmp (error_recovery) == 0)
         {
           if (elt->Type == ASSIGNMENT_ELT)
             {
@@ -11071,11 +11068,11 @@ ScanLoopBody (struct tElt *elt)
 
               ScanLoopBody (p->Statements);
             }
-          elt = elt->Next;
         }
-    }
-  else
-    {
+      else
+        {
+        }
+      elt = elt->Next;
     }
   memcpy (error_recovery, saved_recovery, sizeof (jmp_buf));
   LoopScan = savedloopscan;
